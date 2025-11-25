@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download by Link - YouTube to MP3</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">🎧 Download by Link</h1>
+            <p class="subtitle">Masukkan link YouTube untuk download MP3</p>
+        </header>
+
+        <div class="download-section">
+            <form id="downloadForm" class="download-form">
+                <div class="form-group">
+                    <label for="youtubeUrl" class="form-label">YouTube URL</label>
+                    <input type="text" id="youtubeUrl" class="form-input"
+                        placeholder="https://www.youtube.com/watch?v=..." required>
+                </div>
+
+                <button type="submit" id="downloadBtn" class="btn btn-primary">
+                    <span class="btn-text">Download MP3</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p class="loading-text">Sedang mendownload...</p>
+                <p class="loading-subtext">Mohon tunggu, proses ini mungkin memakan waktu beberapa saat</p>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Download Berhasil!</h3>
+                <p class="success-text" id="successMessage"></p>
+                <button onclick="resetForm()" class="btn btn-secondary">Download Lagi</button>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+
+</html>
