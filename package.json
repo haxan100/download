@@ -4,7 +4,8 @@
   "description": "Web-based download application with YouTube to MP3 support",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "install-ytdlp": "pip install yt-dlp"
   },
   "dependencies": {
     "axios": "^1.9.0",

@@ -2,3 +2,5 @@
 /node_modules
 /output
 music/
+downloads/*
+*downloads/*
