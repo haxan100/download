@@ -69,6 +69,88 @@ io.on('connection', (socket) => {
     });
 });
 
+// API: Download TikTok Video (No Watermark)
+app.post('/api/download-tiktok', async (req, res) => {
+    const { url } = req.body;
+
+    if (!url || (!url.includes('tiktok.com') && !url.includes('vm.tiktok.com'))) {
+        return res.status(400).json({
+            success: false,
+            message: 'URL TikTok tidak valid'
+        });
+    }
+
+    // Check if yt-dlp is installed
+    const ytDlpInstalled = await checkYtDlp();
+    
+    if (!ytDlpInstalled) {
+        return res.status(500).json({
+            success: false,
+            message: 'yt-dlp tidak terinstall. Install dengan: pip install yt-dlp'
+        });
+    }
+
+    try {
+        io.emit('tiktok-download-start', { url });
+
+        // Get video info first
+        const infoCmd = `yt-dlp --print "%(title)s|||%(uploader)s|||%(duration)s" "${url}"`;
+        const { stdout: infoOutput } = await execAsync(infoCmd);
+        const [title, uploader, duration] = infoOutput.trim().split('|||');
+        
+        const sanitizedTitle = sanitizeFilename(title || 'TikTok_Video');
+        const videoFolder = path.join(outputFolder, 'TikTok_Videos', sanitizedTitle);
+        
+        // Create folder for this video
+        if (!fs.existsSync(videoFolder)) {
+            fs.mkdirSync(videoFolder, { recursive: true });
+        }
+
+        // Download TikTok video without watermark
+        const downloadCmd = `yt-dlp --no-warnings "${url}" -o "${videoFolder}/${sanitizedTitle}.%(ext)s"`;
+        
+        console.log('📱 Downloading TikTok:', title);
+        const { stdout } = await execAsync(downloadCmd);
+        
+        // Create info file
+        const infoFile = path.join(videoFolder, 'info.txt');
+        const infoContent = `Judul: ${title || 'Tidak ada judul'}\r\nCreator: ${uploader || 'Tidak diketahui'}\r\nDurasi: ${duration || 'Tidak diketahui'} detik\r\nURL: ${url}\r\n\r\nDownloaded: ${new Date().toLocaleString('id-ID')}`;
+        
+        try {
+            fs.writeFileSync(infoFile, infoContent, 'utf8');
+            console.log('✅ Info file created:', 'info.txt');
+        } catch (err) {
+            console.error('❌ Error creating info file:', err.message);
+        }
+        
+        console.log('✅ TikTok download complete:', sanitizedTitle);
+        
+        io.emit('tiktok-download-complete', { 
+            folder: `TikTok_Videos/${sanitizedTitle}`,
+            title: title
+        });
+
+        res.json({
+            success: true,
+            message: 'Download TikTok berhasil!',
+            folder: `TikTok_Videos/${sanitizedTitle}`,
+            title: title
+        });
+
+    } catch (error) {
+        console.error('❌ TikTok download error:', error.message);
+        io.emit('tiktok-download-error', { 
+            message: error.message.includes('yt-dlp') ? 
+                'yt-dlp tidak terinstall. Install dengan: pip install yt-dlp' : 
+                'Gagal mendownload video TikTok'
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Gagal mendownload video TikTok'
+        });
+    }
+});
+
 // API: Download by Link (YouTube to MP3)
 app.post('/api/download-link', async (req, res) => {
     const { url } = req.body;

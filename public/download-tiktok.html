@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Downloader - No Watermark</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">📱 TikTok Downloader</h1>
+            <p class="subtitle">Download video TikTok tanpa watermark dalam kualitas HD</p>
+        </header>
+
+        <div class="download-section">
+            <form id="tiktokForm" class="download-form">
+                <div class="form-group">
+                    <label for="tiktokUrl" class="form-label">TikTok URL</label>
+                    <input type="text" id="tiktokUrl" class="form-input"
+                        placeholder="https://www.tiktok.com/@username/video/..." required>
+                    <small class="form-hint">Paste link TikTok yang ingin didownload</small>
+                </div>
+
+                <button type="submit" id="downloadBtn" class="btn btn-primary">
+                    <span class="btn-text">Download Video</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p class="loading-text">Sedang mendownload video TikTok...</p>
+                <p class="loading-subtext">Mohon tunggu, video sedang diproses tanpa watermark</p>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Download Berhasil!</h3>
+                <p class="success-text" id="successMessage"></p>
+                <button onclick="resetForm()" class="btn btn-secondary">Download Lagi</button>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById('tiktokForm');
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const toast = document.getElementById('toast');
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('tiktokUrl').value.trim();
+            
+            if (!url) {
+                showToast('Masukkan URL TikTok yang valid', 'error');
+                return;
+            }
+
+            // Show loading state
+            form.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            successState.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/download-tiktok', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show success state
+                    loadingState.classList.add('hidden');
+                    successState.classList.remove('hidden');
+                    document.getElementById('successMessage').textContent = 
+                        `Video "${result.title}" berhasil didownload ke folder: ${result.folder}`;
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast(error.message || 'Gagal mendownload video', 'error');
+                resetForm();
+            }
+        });
+
+        // Socket events
+        socket.on('tiktok-download-start', (data) => {
+            console.log('Download started:', data.url);
+        });
+
+        socket.on('tiktok-download-complete', (data) => {
+            console.log('Download completed:', data);
+        });
+
+        socket.on('tiktok-download-error', (data) => {
+            showToast(data.message, 'error');
+            resetForm();
+        });
+
+        // Reset form function
+        function resetForm() {
+            form.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            document.getElementById('tiktokUrl').value = '';
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

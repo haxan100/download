@@ -1,20 +1,38 @@
-# 📦 Running Web UI download Youtube music, Thumbnail , & description
+# 📦 Download Hub - Multi Platform Downloader
 
-skrip ini digunakan untuk download music, Thumbnail , & description
+Aplikasi web untuk download konten dari berbagai platform:
+- 🎧 **YouTube to MP3** - Download musik, thumbnail & deskripsi
+- 📱 **TikTok Downloader** - Download video TikTok tanpa watermark
 
-jalankan dengan  : 
+## Cara Menjalankan
 
-```
+```bash
 node .\index.js
-
 ```
-akan buka 
-   ```bash
-  http://localhost:3001/download-link.html
-   ```
-masukan link yang akan di download <br>
-filenya akan masuk di dalam downloads <br>
-dan akan membuat folder judulnya
+
+Setelah server berjalan, buka browser dan akses:
+```
+http://localhost:3001/
+```
+
+## Fitur Utama
+
+### 🎧 YouTube Downloader
+- Download musik dalam format MP3
+- Download thumbnail dalam format JPG
+- Simpan deskripsi video
+- File tersimpan dalam folder sesuai judul
+
+### 📱 TikTok Downloader
+- Download video TikTok tanpa watermark
+- Kualitas HD
+- Simpan info video (creator, durasi, dll)
+- File tersimpan dalam folder `TikTok_Videos/`
+
+## Struktur Folder
+- `downloads/` - Folder utama hasil download
+  - `[Judul_Video]/` - Folder YouTube (MP3 + thumbnail + deskripsi)
+  - `TikTok_Videos/[Judul]/` - Folder TikTok (video + info)
 
 
 # 

@@ -135,6 +135,16 @@ body::before {
   border-color: var(--primary);
 }
 
+.card-secondary {
+  border-color: #ff0050;
+}
+
+.card-secondary:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(255, 0, 80, 0.3);
+  border-color: #ff0050;
+}
+
 .card-disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -227,6 +237,14 @@ body::before {
 .form-input::placeholder {
   color: var(--text-secondary);
   opacity: 0.6;
+}
+
+.form-hint {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  opacity: 0.8;
 }
 
 /* Buttons */
