@@ -1,3 +1,24 @@
+# 📦 Running Web UI download Youtube music, Thumbnail , & description
+
+skrip ini digunakan untuk download music, Thumbnail , & description
+
+jalankan dengan  : 
+
+```
+node .\index.js
+
+```
+akan buka 
+   ```bash
+  http://localhost:3001/download-link.html
+   ```
+masukan link yang akan di download <br>
+filenya akan masuk di dalam downloads <br>
+dan akan membuat folder judulnya
+
+
+# 
+
 # 📦 One Piece Image Scraper
 
 Skrip ini digunakan untuk mengunduh gambar dari Pinterest dan DeviantArt berdasarkan daftar item yang terdapat pada file `bahan_onepiece_items.json`. Gambar akan disimpan ke dalam folder sesuai kategori dan nama item.
