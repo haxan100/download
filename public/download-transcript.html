@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Transcript Downloader</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">📝 YouTube Transcript</h1>
+            <p class="subtitle">Download teks percakapan/narasi dari video YouTube</p>
+            <div class="info-banner">
+                <p><strong>ℹ️ Info:</strong> YouTube auto-subtitle hanya tersedia untuk video <strong>bahasa Inggris</strong>. Video bahasa Indonesia biasanya tidak memiliki transcript otomatis.</p>
+            </div>
+        </header>
+
+        <div class="download-section">
+            <form id="transcriptForm" class="download-form">
+                <div class="form-group">
+                    <label for="youtubeUrl" class="form-label">YouTube URL</label>
+                    <input type="text" id="youtubeUrl" class="form-input"
+                        placeholder="https://www.youtube.com/watch?v=..." required>
+                    <small class="form-hint">Masukkan link video YouTube yang ingin diambil teksnya</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="transcriptLang" class="form-label">Bahasa Subtitle</label>
+                    <select id="transcriptLang" class="form-input">
+                        <option value="auto">Auto-detect</option>
+                        <option value="id">Indonesia</option>
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="downloadBtn" class="btn btn-primary">
+                    <span class="btn-text">Download Transcript</span>
+                </button>
+                
+                <button type="button" id="demoBtn" class="btn btn-secondary" onclick="loadDemo()" style="margin-top: 1rem;">
+                    <span class="btn-text">📋 Lihat Demo Transcript</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p class="loading-text">Sedang mengambil transcript...</p>
+                <p class="loading-subtext">Mohon tunggu, teks sedang diproses</p>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Transcript Berhasil Didownload!</h3>
+                <p class="success-text" id="successMessage"></p>
+                
+                <!-- Transcript Preview -->
+                <div id="transcriptPreview" class="transcript-preview hidden">
+                    <h4>Preview Transcript:</h4>
+                    <div id="transcriptContent" class="transcript-content"></div>
+                </div>
+                
+                <div class="success-buttons">
+                    <button id="viewTranscriptBtn" class="btn btn-primary" onclick="toggleTranscript()" style="display: none;">👁️ Lihat Transcript</button>
+                    <button onclick="resetForm()" class="btn btn-secondary">Download Lagi</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById('transcriptForm');
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const toast = document.getElementById('toast');
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('youtubeUrl').value.trim();
+            const lang = document.getElementById('transcriptLang').value;
+            
+            if (!url) {
+                showToast('Masukkan URL YouTube yang valid', 'error');
+                return;
+            }
+
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                showToast('URL harus dari YouTube', 'error');
+                return;
+            }
+
+            // Show loading state
+            form.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            successState.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/download-transcript', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url, lang })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show success state
+                    loadingState.classList.add('hidden');
+                    successState.classList.remove('hidden');
+                    document.getElementById('successMessage').innerHTML = 
+                        `Transcript "<strong>${result.title}</strong>" berhasil didownload!<br>
+                         File: ${result.filename}<br>
+                         Bahasa: ${result.language}`;
+                    
+                    // Show transcript content if available
+                    if (result.transcript) {
+                        document.getElementById('transcriptContent').textContent = result.transcript;
+                        document.getElementById('viewTranscriptBtn').style.display = 'inline-block';
+                    }
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast(error.message || 'Gagal mendownload transcript', 'error');
+                resetForm();
+            }
+        });
+
+        // Toggle transcript preview
+        function toggleTranscript() {
+            const preview = document.getElementById('transcriptPreview');
+            const btn = document.getElementById('viewTranscriptBtn');
+            
+            if (preview.classList.contains('hidden')) {
+                preview.classList.remove('hidden');
+                btn.textContent = '🙈 Sembunyikan';
+            } else {
+                preview.classList.add('hidden');
+                btn.textContent = '👁️ Lihat Transcript';
+            }
+        }
+
+        // Reset form function
+        function resetForm() {
+            form.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            document.getElementById('youtubeUrl').value = '';
+            document.getElementById('transcriptLang').value = 'auto';
+            
+            // Reset transcript preview
+            document.getElementById('transcriptPreview').classList.add('hidden');
+            document.getElementById('viewTranscriptBtn').style.display = 'none';
+            document.getElementById('viewTranscriptBtn').textContent = '👁️ Lihat Transcript';
+        }
+
+        // Load demo transcript
+        async function loadDemo() {
+            try {
+                const response = await fetch('/api/demo-transcript');
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success state with demo data
+                    form.classList.add('hidden');
+                    successState.classList.remove('hidden');
+                    document.getElementById('successMessage').innerHTML = 
+                        `Demo Transcript "<strong>${result.title}</strong>"<br>
+                         File: ${result.filename}<br>
+                         Bahasa: ${result.language}`;
+                    
+                    // Show full transcript content
+                    document.getElementById('transcriptContent').textContent = result.fullTranscript;
+                    document.getElementById('viewTranscriptBtn').style.display = 'inline-block';
+                    
+                    showToast('Demo transcript berhasil dimuat!', 'success');
+                } else {
+                    showToast('Demo transcript tidak tersedia', 'error');
+                }
+            } catch (error) {
+                showToast('Gagal memuat demo transcript', 'error');
+            }
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

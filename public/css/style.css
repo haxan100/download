@@ -165,6 +165,16 @@ body::before {
   border-color: #dc2626;
 }
 
+.card-transcript {
+  border-color: #059669;
+}
+
+.card-transcript:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(5, 150, 105, 0.3);
+  border-color: #059669;
+}
+
 .card-disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -714,6 +724,66 @@ body::before {
   min-width: 150px;
 }
 
+/* Transcript Preview Styles */
+.transcript-preview {
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.transcript-preview h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.transcript-content {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.transcript-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.transcript-content::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 4px;
+}
+
+.transcript-content::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+/* Info Banner Styles */
+.info-banner {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  color: var(--text-secondary);
+}
+
+.info-banner p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.info-banner strong {
+  color: var(--text-primary);
+}
+
 @media (max-width: 768px) {
   .success-buttons {
     flex-direction: column;
@@ -723,5 +793,10 @@ body::before {
   .success-buttons .btn {
     width: 100%;
     max-width: 300px;
+  }
+  
+  .transcript-content {
+    max-height: 300px;
+    padding: 1rem;
   }
 }

@@ -306,6 +306,10 @@ app.post('/api/scan-videos', async (req, res) => {
 const videoMergerRoutes = require('./video-merger-api');
 app.use('/api', videoMergerRoutes);
 
+// Import transcript routes
+const transcriptRoutes = require('./transcript-api');
+app.use('/api', transcriptRoutes);
+
 // Start server
 server.listen(PORT, async () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
