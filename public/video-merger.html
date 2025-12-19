@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Merger - Gabung Video dengan Teks</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">🎬 Video Merger</h1>
+            <p class="subtitle">Gabungkan video dengan teks judul yang muncul sesuai urutan</p>
+        </header>
+
+        <div class="merger-section">
+            <!-- Step 1: Select Folder -->
+            <div id="folderStep" class="step-section">
+                <h3 class="step-title">📁 Pilih Folder Video</h3>
+                <div class="folder-selector">
+                    <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
+                    <button type="button" id="selectFolderBtn" class="btn btn-primary">Pilih Folder</button>
+                    <p id="selectedPath" class="selected-path">Belum ada folder dipilih</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Arrange Videos -->
+            <div id="arrangeStep" class="step-section hidden">
+                <h3 class="step-title">🎯 Atur Urutan & Judul Video</h3>
+                <div class="video-list" id="videoList"></div>
+                <div class="merge-controls">
+                    <div class="form-group">
+                        <label for="outputName" class="form-label">Nama File Output</label>
+                        <input type="text" id="outputName" class="form-input" 
+                            placeholder="video_gabungan" value="video_gabungan">
+                    </div>
+                    <button id="mergeBtn" class="btn btn-primary">Gabungkan Video</button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p class="loading-text">Sedang menggabungkan video...</p>
+                <p class="loading-subtext">Proses ini membutuhkan waktu tergantung ukuran video</p>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Video Berhasil Digabung!</h3>
+                <p class="success-text" id="successMessage"></p>
+                <button onclick="resetMerger()" class="btn btn-secondary">Gabung Lagi</button>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let videoFiles = [];
+
+        // Elements
+        const folderStep = document.getElementById('folderStep');
+        const arrangeStep = document.getElementById('arrangeStep');
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const videoList = document.getElementById('videoList');
+        const toast = document.getElementById('toast');
+
+        // Folder selection
+        document.getElementById('selectFolderBtn').addEventListener('click', () => {
+            document.getElementById('folderInput').click();
+        });
+
+        document.getElementById('folderInput').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            const videoFiles = files.filter(file => 
+                /\.(mp4|avi|mov|mkv|wmv|flv|webm)$/i.test(file.name)
+            );
+
+            if (videoFiles.length === 0) {
+                showToast('Tidak ada file video ditemukan', 'error');
+                return;
+            }
+
+            // Get folder path from first file
+            const folderPath = videoFiles[0].webkitRelativePath.split('/')[0];
+            document.getElementById('selectedPath').textContent = `Folder: ${folderPath} (${videoFiles.length} video)`;
+
+            // Process video files
+            window.videoFiles = videoFiles.map(file => ({
+                name: file.name,
+                file: file
+            })).sort((a, b) => a.name.localeCompare(b.name));
+
+            displayVideoList();
+            folderStep.classList.add('hidden');
+            arrangeStep.classList.remove('hidden');
+        });
+
+        // Display video list for arrangement
+        function displayVideoList() {
+            videoList.innerHTML = '';
+            
+            window.videoFiles.forEach((video, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.innerHTML = `
+                    <div class="video-info">
+                        <span class="video-order">${index + 1}</span>
+                        <span class="video-name">${video.name}</span>
+                    </div>
+                    <div class="video-controls">
+                        <input type="text" class="title-input" placeholder="Judul untuk video ini..." 
+                               value="${video.name.replace(/\.[^/.]+$/, '')}" data-index="${index}" id="title_${index}">
+                        <button onclick="moveUp(${index})" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button onclick="moveDown(${index})" ${index === window.videoFiles.length - 1 ? 'disabled' : ''}>↓</button>
+                    </div>
+                `;
+                videoList.appendChild(videoItem);
+            });
+        }
+
+        // Move video up
+        function moveUp(index) {
+            if (index > 0) {
+                // Save current titles before moving
+                const currentTitles = [];
+                window.videoFiles.forEach((_, i) => {
+                    const input = document.getElementById(`title_${i}`);
+                    currentTitles[i] = input ? input.value : '';
+                });
+                
+                // Swap videos and titles
+                [window.videoFiles[index], window.videoFiles[index - 1]] = [window.videoFiles[index - 1], window.videoFiles[index]];
+                [currentTitles[index], currentTitles[index - 1]] = [currentTitles[index - 1], currentTitles[index]];
+                
+                displayVideoList();
+                
+                // Restore titles
+                setTimeout(() => {
+                    currentTitles.forEach((title, i) => {
+                        const input = document.getElementById(`title_${i}`);
+                        if (input) input.value = title;
+                    });
+                }, 10);
+            }
+        }
+
+        // Move video down
+        function moveDown(index) {
+            if (index < window.videoFiles.length - 1) {
+                // Save current titles before moving
+                const currentTitles = [];
+                window.videoFiles.forEach((_, i) => {
+                    const input = document.getElementById(`title_${i}`);
+                    currentTitles[i] = input ? input.value : '';
+                });
+                
+                // Swap videos and titles
+                [window.videoFiles[index], window.videoFiles[index + 1]] = [window.videoFiles[index + 1], window.videoFiles[index]];
+                [currentTitles[index], currentTitles[index + 1]] = [currentTitles[index + 1], currentTitles[index]];
+                
+                displayVideoList();
+                
+                // Restore titles
+                setTimeout(() => {
+                    currentTitles.forEach((title, i) => {
+                        const input = document.getElementById(`title_${i}`);
+                        if (input) input.value = title;
+                    });
+                }, 10);
+            }
+        }
+
+        // Merge videos
+        document.getElementById('mergeBtn').addEventListener('click', async () => {
+            const outputName = document.getElementById('outputName').value.trim() || 'video_gabungan';
+            
+            // Collect titles in current order from the actual input values
+            const titles = [];
+            window.videoFiles.forEach((video, index) => {
+                const titleInput = document.getElementById(`title_${index}`);
+                if (titleInput) {
+                    titles.push(titleInput.value.trim() || `Video ${index + 1}`);
+                } else {
+                    titles.push(`Video ${index + 1}`);
+                }
+            });
+
+            console.log('Titles to be used:', titles); // Debug log
+
+            arrangeStep.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+
+            // Create FormData for file upload
+            const formData = new FormData();
+            formData.append('outputName', outputName);
+            formData.append('titles', JSON.stringify(titles));
+            
+            window.videoFiles.forEach((video, index) => {
+                formData.append(`video_${index}`, video.file);
+            });
+
+            try {
+                const response = await fetch('/api/merge-videos-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    loadingState.classList.add('hidden');
+                    successState.classList.remove('hidden');
+                    document.getElementById('successMessage').innerHTML = 
+                        `Video berhasil digabung: <strong>${result.outputFile}</strong><br>
+                         Resolusi: ${result.resolution || 'Unknown'}<br>
+                         Font size: ${result.fontSize || 'Auto'}px`;
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showToast(error.message || 'Gagal menggabungkan video', 'error');
+                resetMerger();
+            }
+        });
+
+        // Reset merger
+        function resetMerger() {
+            folderStep.classList.remove('hidden');
+            arrangeStep.classList.add('hidden');
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            document.getElementById('selectedPath').textContent = 'Belum ada folder dipilih';
+            document.getElementById('outputName').value = 'video_gabungan';
+            window.videoFiles = [];
+        }
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Socket events
+        socket.on('merge-progress', (data) => {
+            document.querySelector('.loading-text').textContent = data.message;
+        });
+    </script>
+</body>
+
+</html>

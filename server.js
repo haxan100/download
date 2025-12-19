@@ -60,6 +60,9 @@ function checkFfmpeg() {
     });
 }
 
+// Make io globally available for other modules
+global.io = io;
+
 // Socket.IO connection
 io.on('connection', (socket) => {
     console.log('✅ Client connected:', socket.id);
@@ -68,6 +71,10 @@ io.on('connection', (socket) => {
         console.log('❌ Client disconnected:', socket.id);
     });
 });
+
+// Import YouTube video routes
+const youtubeVideoRoutes = require('./youtube-video-api');
+app.use('/api', youtubeVideoRoutes);
 
 // API: Download TikTok Video (No Watermark)
 app.post('/api/download-tiktok', async (req, res) => {
@@ -251,6 +258,53 @@ ${description || 'Tidak ada deskripsi'}`;
         });
     }
 });
+
+// API: Scan Videos in Folder
+app.post('/api/scan-videos', async (req, res) => {
+    const { folderPath } = req.body;
+
+    if (!folderPath || !fs.existsSync(folderPath)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Folder tidak ditemukan'
+        });
+    }
+
+    try {
+        const files = fs.readdirSync(folderPath);
+        const videoFiles = files
+            .filter(file => /\.(mp4|avi|mov|mkv|wmv|flv|webm)$/i.test(file))
+            .map(file => ({
+                name: file,
+                path: path.join(folderPath, file)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        if (videoFiles.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Tidak ada file video ditemukan di folder'
+            });
+        }
+
+        res.json({
+            success: true,
+            videos: videoFiles,
+            count: videoFiles.length
+        });
+
+    } catch (error) {
+        console.error('❌ Scan folder error:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Gagal membaca folder'
+        });
+    }
+});
+
+// Import video merger routes
+const videoMergerRoutes = require('./video-merger-api');
+app.use('/api', videoMergerRoutes);
 
 // Start server
 server.listen(PORT, async () => {

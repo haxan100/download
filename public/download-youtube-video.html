@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader - HD Quality</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">🎥 YouTube Video Downloader</h1>
+            <p class="subtitle">Download video YouTube dalam format MP4 dengan kualitas HD</p>
+        </header>
+
+        <div class="download-section">
+            <form id="youtubeVideoForm" class="download-form">
+                <div class="form-group">
+                    <label for="youtubeVideoUrl" class="form-label">YouTube URL</label>
+                    <input type="text" id="youtubeVideoUrl" class="form-input"
+                        placeholder="https://www.youtube.com/watch?v=... atau https://youtube.com/shorts/..." required>
+                    <small class="form-hint">Support video panjang dan YouTube Shorts</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="videoQuality" class="form-label">Kualitas Video</label>
+                    <select id="videoQuality" class="form-input">
+                        <option value="best">Kualitas Terbaik (Auto)</option>
+                        <option value="1080">1080p (Full HD)</option>
+                        <option value="720">720p (HD)</option>
+                        <option value="480">480p (SD)</option>
+                        <option value="360">360p</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="downloadVideoBtn" class="btn btn-primary">
+                    <span class="btn-text">Download Video</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+                <p class="loading-text" id="loadingText">Memulai download...</p>
+                <p class="loading-subtext">Video sedang diproses dalam kualitas HD</p>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Download Berhasil!</h3>
+                <p class="success-text" id="successMessage"></p>
+                
+                <!-- Video Player -->
+                <div id="videoPlayer" class="video-player hidden">
+                    <video id="downloadedVideo" controls width="100%" style="max-width: 600px; border-radius: 10px;">
+                        <source id="videoSource" src="" type="video/mp4">
+                        Browser Anda tidak support video player.
+                    </video>
+                </div>
+                
+                <div class="success-buttons">
+                    <button id="playVideoBtn" class="btn btn-primary" onclick="playVideo()" style="display: none;">▶️ Play Video</button>
+                    <button onclick="resetForm()" class="btn btn-secondary">Download Lagi</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById('youtubeVideoForm');
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const toast = document.getElementById('toast');
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('youtubeVideoUrl').value.trim();
+            const quality = document.getElementById('videoQuality').value;
+            
+            if (!url) {
+                showToast('Masukkan URL YouTube yang valid', 'error');
+                return;
+            }
+
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                showToast('URL harus dari YouTube', 'error');
+                return;
+            }
+
+            // Show loading state
+            form.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            successState.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/download-youtube-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url, quality })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show loading state
+                    form.classList.add('hidden');
+                    loadingState.classList.remove('hidden');
+                    document.getElementById('loadingText').textContent = `Downloading: ${result.title}`;
+                    
+                    showToast('Download dimulai!', 'success');
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast(error.message || 'Gagal mendownload video', 'error');
+                resetForm();
+            }
+        });
+
+        // Socket events for progress tracking
+        socket.on('youtube-video-progress', (data) => {
+            document.getElementById('progressFill').style.width = data.progress + '%';
+            document.getElementById('progressText').textContent = data.progress + '%';
+            document.getElementById('loadingText').textContent = `Downloading: ${data.title} (${data.progress}%)`;
+        });
+
+        socket.on('youtube-video-complete', (data) => {
+            loadingState.classList.add('hidden');
+            successState.classList.remove('hidden');
+            document.getElementById('successMessage').innerHTML = 
+                `Video "<strong>${data.title}</strong>" berhasil didownload!<br>Folder: ${data.folder}`;
+            
+            // Show play button and set video source
+            if (data.videoPath) {
+                document.getElementById('playVideoBtn').style.display = 'inline-block';
+                document.getElementById('videoSource').src = '/api' + data.videoPath;
+                window.currentVideoPath = data.videoPath;
+            }
+            
+            showToast(`${data.title} selesai didownload!`, 'success');
+        });
+
+        socket.on('youtube-video-error', (data) => {
+            showToast(data.message || 'Download gagal', 'error');
+            resetForm();
+        });
+
+        // Play video function
+        function playVideo() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const video = document.getElementById('downloadedVideo');
+            const playBtn = document.getElementById('playVideoBtn');
+            
+            if (videoPlayer.classList.contains('hidden')) {
+                videoPlayer.classList.remove('hidden');
+                video.load(); // Reload video source
+                playBtn.textContent = '⏸️ Hide Video';
+            } else {
+                videoPlayer.classList.add('hidden');
+                video.pause();
+                playBtn.textContent = '▶️ Play Video';
+            }
+        }
+
+        // Reset form function
+        function resetForm() {
+            form.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            document.getElementById('youtubeVideoUrl').value = '';
+            document.getElementById('videoQuality').value = 'best';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            
+            // Reset video player
+            document.getElementById('videoPlayer').classList.add('hidden');
+            document.getElementById('playVideoBtn').style.display = 'none';
+            document.getElementById('playVideoBtn').textContent = '▶️ Play Video';
+            document.getElementById('downloadedVideo').pause();
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

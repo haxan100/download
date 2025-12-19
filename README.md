@@ -2,7 +2,9 @@
 
 Aplikasi web untuk download konten dari berbagai platform:
 - 🎧 **YouTube to MP3** - Download musik, thumbnail & deskripsi
+- 🎥 **YouTube Video** - Download video YouTube dalam format MP4
 - 📱 **TikTok Downloader** - Download video TikTok tanpa watermark
+- 🎬 **Video Merger** - Gabungkan video dengan teks judul otomatis
 
 ## Cara Menjalankan
 
@@ -23,16 +25,31 @@ http://localhost:3001/
 - Simpan deskripsi video
 - File tersimpan dalam folder sesuai judul
 
+### 🎥 YouTube Video Downloader
+- Download video YouTube dalam format MP4
+- Pilihan kualitas: Auto, 1080p, 720p, 480p, 360p
+- Support video panjang dan YouTube Shorts
+- File tersimpan dalam folder `YouTube_Videos/`
+
 ### 📱 TikTok Downloader
 - Download video TikTok tanpa watermark
 - Kualitas HD
 - Simpan info video (creator, durasi, dll)
 - File tersimpan dalam folder `TikTok_Videos/`
 
+### 🎬 Video Merger
+- Gabungkan beberapa video menjadi satu
+- Tambahkan teks judul yang muncul di setiap video
+- Atur urutan video dengan mudah
+- Teks muncul di kiri atas setiap video sesuai urutan
+- File tersimpan dalam folder `Merged_Videos/`
+
 ## Struktur Folder
 - `downloads/` - Folder utama hasil download
   - `[Judul_Video]/` - Folder YouTube (MP3 + thumbnail + deskripsi)
+  - `YouTube_Videos/[Judul]/` - Folder YouTube Video (MP4 + info)
   - `TikTok_Videos/[Judul]/` - Folder TikTok (video + info)
+  - `Merged_Videos/` - Folder video yang sudah digabung
 
 
 # 
