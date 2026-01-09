@@ -34,7 +34,7 @@ function checkYtDlp() {
 
 // API: Universal Download (YouTube or TikTok)
 router.post('/universal-download', async (req, res) => {
-    const { url, platform, showSource } = req.body;
+    const { url, platform, showSource, randomEdit } = req.body;
 
     if (!url) {
         return res.status(400).json({
@@ -137,6 +137,11 @@ router.post('/universal-download', async (req, res) => {
         // Add watermark if showSource is enabled
         if (showSource && uploader) {
             await addSourceWatermark(videoFolder, sanitizedTitle, uploader);
+        }
+        
+        // Apply random edit if enabled
+        if (randomEdit) {
+            await applyRandomEdit(videoFolder, sanitizedTitle);
         }
         
         // Clear progress interval
@@ -306,5 +311,97 @@ async function addSourceWatermark(videoFolder, videoName, channelName) {
         console.log('✅ Watermark added:', watermarkText);
     } catch (error) {
         console.error('❌ Watermark error:', error.message);
+    }
+}
+
+// Function to apply random edit (cut every 5 seconds and randomize)
+async function applyRandomEdit(videoFolder, videoName) {
+    try {
+        const files = fs.readdirSync(videoFolder);
+        const videoFile = files.find(file => file.endsWith('.mp4'));
+        
+        if (!videoFile) return;
+        
+        const inputPath = path.join(videoFolder, videoFile);
+        const tempFolder = path.join(videoFolder, 'temp_segments');
+        const outputPath = path.join(videoFolder, `${videoName}_random.mp4`);
+        
+        // Create temp folder
+        if (!fs.existsSync(tempFolder)) {
+            fs.mkdirSync(tempFolder, { recursive: true });
+        }
+        
+        // Get video duration
+        let durationCmd;
+        if (fs.existsSync(ffmpegPath)) {
+            durationCmd = `"${path.join(__dirname, 'ffmpeg', 'bin', 'ffprobe.exe')}" -v quiet -show_entries format=duration -of csv=p=0 "${inputPath}"`;
+        } else {
+            durationCmd = `ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${inputPath}"`;
+        }
+        
+        const { stdout: durationOutput } = await execAsync(durationCmd);
+        const totalDuration = parseFloat(durationOutput.trim());
+        const segmentDuration = 5; // 5 seconds per segment
+        const totalSegments = Math.floor(totalDuration / segmentDuration);
+        
+        if (totalSegments < 2) {
+            console.log('Video too short for random edit');
+            return;
+        }
+        
+        // Cut video into 5-second segments with re-encoding
+        const segmentPromises = [];
+        for (let i = 0; i < totalSegments; i++) {
+            const startTime = i * segmentDuration;
+            const segmentPath = path.join(tempFolder, `segment_${i.toString().padStart(3, '0')}.mp4`);
+            
+            let segmentCmd;
+            if (fs.existsSync(ffmpegPath)) {
+                segmentCmd = `"${ffmpegPath}" -i "${inputPath}" -ss ${startTime} -t ${segmentDuration} -c:v libx264 -c:a aac -avoid_negative_ts make_zero "${segmentPath}"`;
+            } else {
+                segmentCmd = `ffmpeg -i "${inputPath}" -ss ${startTime} -t ${segmentDuration} -c:v libx264 -c:a aac -avoid_negative_ts make_zero "${segmentPath}"`;
+            }
+            
+            segmentPromises.push(execAsync(segmentCmd));
+        }
+        
+        await Promise.all(segmentPromises);
+        
+        // Create randomized order
+        const segmentOrder = Array.from({length: totalSegments}, (_, i) => i);
+        for (let i = segmentOrder.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [segmentOrder[i], segmentOrder[j]] = [segmentOrder[j], segmentOrder[i]];
+        }
+        
+        // Create concat file with randomized order (use relative paths)
+        const concatFile = path.join(tempFolder, 'concat_list.txt');
+        const concatContent = segmentOrder.map(i => 
+            `file 'segment_${i.toString().padStart(3, '0')}.mp4'`
+        ).join('\n');
+        
+        fs.writeFileSync(concatFile, concatContent, 'utf8');
+        
+        // Concatenate randomized segments
+        let concatCmd;
+        if (fs.existsSync(ffmpegPath)) {
+            concatCmd = `"${ffmpegPath}" -f concat -safe 0 -i "${concatFile}" -c:v libx264 -c:a aac "${outputPath}"`;
+        } else {
+            concatCmd = `ffmpeg -f concat -safe 0 -i "${concatFile}" -c:v libx264 -c:a aac "${outputPath}"`;
+        }
+        
+        // Change working directory for concat
+        const { stdout } = await execAsync(concatCmd, { cwd: tempFolder });
+        
+        // Replace original file with randomized version
+        fs.unlinkSync(inputPath);
+        fs.renameSync(outputPath, inputPath);
+        
+        // Clean up temp folder
+        fs.rmSync(tempFolder, { recursive: true, force: true });
+        
+        console.log('✅ Random edit applied:', `${totalSegments} segments randomized`);
+    } catch (error) {
+        console.error('❌ Random edit error:', error.message);
     }
 }

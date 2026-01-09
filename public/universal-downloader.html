@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Downloader - YouTube & TikTok</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="/" class="back-button">← Kembali</a>
+            <h1 class="title">🌍 Universal Downloader</h1>
+            <p class="subtitle">Download video dari YouTube atau TikTok dalam satu tempat</p>
+        </header>
+
+        <div class="download-section">
+            <form id="universalForm" class="download-form">
+                <div class="form-group">
+                    <label for="videoUrl" class="form-label">Video URL</label>
+                    <input type="text" id="videoUrl" class="form-input"
+                        placeholder="Paste link YouTube atau TikTok di sini..." required>
+                    <small class="form-hint">Support: YouTube (video/shorts) dan TikTok</small>
+                </div>
+
+                <div class="platform-info" id="platformInfo">
+                    <div class="platform-badge" id="platformBadge">
+                        <span id="platformIcon">🔗</span>
+                        <span id="platformText">Paste link untuk deteksi platform</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showSource" class="checkbox">
+                        Tampilkan Sumber (Nama Channel)
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="randomEdit" class="checkbox">
+                        Edit Acak (Potong 5 detik & acak urutan)
+                    </label>
+                </div>
+
+                <button type="submit" id="downloadBtn" class="btn btn-primary">
+                    <span class="btn-text">Download Video</span>
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state hidden">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+                <p class="loading-text" id="loadingText">Memulai download...</p>
+                <p class="loading-subtext" id="loadingSubtext">Video sedang diproses</p>
+                <button id="cancelBtn" class="btn btn-secondary" onclick="cancelDownload()">❌ Cancel Download</button>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-state hidden">
+                <div class="success-icon">✅</div>
+                <h3 class="success-title">Download Berhasil!</h3>
+                <p class="success-text" id="successMessage"></p>
+                
+                <!-- Video Player -->
+                <div id="videoPlayer" class="video-player hidden">
+                    <video id="downloadedVideo" controls width="100%" style="max-width: 600px; border-radius: 10px;">
+                        <source id="videoSource" src="" type="video/mp4">
+                        Browser Anda tidak support video player.
+                    </video>
+                </div>
+                
+                <!-- Next Download Form -->
+                <div class="next-download">
+                    <h4>Download Video Lain:</h4>
+                    <div class="next-form">
+                        <input type="text" id="nextUrl" class="form-input" placeholder="Paste link YouTube atau TikTok...">
+                        
+                        <div class="platform-info" id="nextPlatformInfo" style="margin: 0.5rem 0;">
+                            <div class="platform-badge" id="nextPlatformBadge">
+                                <span id="nextPlatformIcon">🔗</span>
+                                <span id="nextPlatformText">Paste link untuk deteksi platform</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin: 0.5rem 0;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="nextShowSource" class="checkbox">
+                                Tampilkan Sumber (Nama Channel)
+                            </label>
+                        </div>
+                        
+                        <div class="form-group" style="margin: 0.5rem 0;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="nextRandomEdit" class="checkbox">
+                                Edit Acak (Potong 5 detik & acak urutan)
+                            </label>
+                        </div>
+                        
+                        <button id="nextDownloadBtn" class="btn btn-primary" onclick="downloadNext()">🚀 Download</button>
+                    </div>
+                </div>
+                
+                <div class="success-buttons">
+                    <button id="downloadLinkBtn" class="btn btn-primary" onclick="downloadFile()" style="display: none;">📥 Download File</button>
+                    <button id="playVideoBtn" class="btn btn-secondary" onclick="playVideo()" style="display: none;">▶️ Play Video</button>
+                    <button onclick="resetForm()" class="btn btn-secondary">Reset Form</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById('universalForm');
+        const loadingState = document.getElementById('loadingState');
+        const successState = document.getElementById('successState');
+        const toast = document.getElementById('toast');
+        const urlInput = document.getElementById('videoUrl');
+
+        // Detect platform when URL changes
+        urlInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            detectPlatform(url);
+        });
+
+        // Detect platform for next URL input
+        document.getElementById('nextUrl').addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            detectNextPlatform(url);
+        });
+
+        function detectNextPlatform(url) {
+            const platformIcon = document.getElementById('nextPlatformIcon');
+            const platformText = document.getElementById('nextPlatformText');
+            const platformBadge = document.getElementById('nextPlatformBadge');
+            
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                platformIcon.textContent = '🎥';
+                platformText.textContent = 'YouTube Video Detected';
+                platformBadge.className = 'platform-badge youtube';
+            } else if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
+                platformIcon.textContent = '📱';
+                platformText.textContent = 'TikTok Video Detected';
+                platformBadge.className = 'platform-badge tiktok';
+            } else if (url === '') {
+                platformIcon.textContent = '🔗';
+                platformText.textContent = 'Paste link untuk deteksi platform';
+                platformBadge.className = 'platform-badge';
+            } else {
+                platformIcon.textContent = '❓';
+                platformText.textContent = 'Platform tidak dikenali';
+                platformBadge.className = 'platform-badge unknown';
+            }
+        }
+
+        function detectPlatform(url) {
+            const platformIcon = document.getElementById('platformIcon');
+            const platformText = document.getElementById('platformText');
+            const platformBadge = document.getElementById('platformBadge');
+            
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                platformIcon.textContent = '🎥';
+                platformText.textContent = 'YouTube Video Detected';
+                platformBadge.className = 'platform-badge youtube';
+            } else if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
+                platformIcon.textContent = '📱';
+                platformText.textContent = 'TikTok Video Detected';
+                platformBadge.className = 'platform-badge tiktok';
+            } else if (url === '') {
+                platformIcon.textContent = '🔗';
+                platformText.textContent = 'Paste link untuk deteksi platform';
+                platformBadge.className = 'platform-badge';
+            } else {
+                platformIcon.textContent = '❓';
+                platformText.textContent = 'Platform tidak dikenali';
+                platformBadge.className = 'platform-badge unknown';
+            }
+        }
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showToast('Masukkan URL video yang valid', 'error');
+                return;
+            }
+
+            // Check platform
+            let platform = '';
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                platform = 'youtube';
+            } else if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
+                platform = 'tiktok';
+            } else {
+                showToast('Platform tidak didukung. Gunakan YouTube atau TikTok', 'error');
+                return;
+            }
+
+            // Show loading state
+            form.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            successState.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/universal-download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        url, 
+                        platform,
+                        showSource: document.getElementById('showSource').checked,
+                        randomEdit: document.getElementById('randomEdit').checked
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('loadingText').textContent = `Downloading: ${result.title}`;
+                    document.getElementById('loadingSubtext').textContent = `Platform: ${result.platform}`;
+                    showToast('Download dimulai!', 'success');
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast(error.message || 'Gagal mendownload video', 'error');
+                resetForm();
+            }
+        });
+
+        // Cancel download function
+        function cancelDownload() {
+            fetch('/api/cancel-download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showToast('Download dibatalkan', 'info');
+                    resetForm();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Gagal membatalkan download', 'error');
+            });
+        }
+
+        // Socket event for download cancelled
+        socket.on('download-cancelled', (data) => {
+            showToast(data.message, 'info');
+            resetForm();
+        });
+
+        socket.on('universal-progress', (data) => {
+            document.getElementById('progressFill').style.width = data.progress + '%';
+            document.getElementById('progressText').textContent = data.progress + '%';
+            document.getElementById('loadingText').textContent = `Downloading: ${data.title} (${data.progress}%)`;
+        });
+
+        socket.on('universal-complete', (data) => {
+            loadingState.classList.add('hidden');
+            successState.classList.remove('hidden');
+            document.getElementById('successMessage').innerHTML = 
+                `Video "<strong>${data.title}</strong>" berhasil didownload!<br>
+                 Platform: ${data.platform}<br>
+                 Folder: ${data.folder}`;
+            
+            // Show download and play buttons if video path available
+            if (data.videoPath) {
+                document.getElementById('playVideoBtn').style.display = 'inline-block';
+                document.getElementById('downloadLinkBtn').style.display = 'inline-block';
+                document.getElementById('videoSource').src = data.videoPath;
+                
+                // Store download path for download function
+                window.currentDownloadPath = data.videoPath;
+            }
+            
+            showToast(`${data.title} selesai didownload!`, 'success');
+        });
+
+        socket.on('universal-error', (data) => {
+            showToast(data.message || 'Download gagal', 'error');
+            resetForm();
+        });
+
+        // Download next video function
+        function downloadNext() {
+            const nextUrl = document.getElementById('nextUrl').value.trim();
+            const nextShowSource = document.getElementById('nextShowSource').checked;
+            const nextRandomEdit = document.getElementById('nextRandomEdit').checked;
+            
+            if (!nextUrl) {
+                showToast('Masukkan URL video', 'error');
+                return;
+            }
+            
+            // Set the URL and checkbox state
+            urlInput.value = nextUrl;
+            document.getElementById('showSource').checked = nextShowSource;
+            document.getElementById('randomEdit').checked = nextRandomEdit;
+            document.getElementById('nextUrl').value = '';
+            document.getElementById('nextShowSource').checked = false;
+            document.getElementById('nextRandomEdit').checked = false;
+            
+            // Hide success state and show loading
+            successState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            
+            // Trigger form submission
+            form.dispatchEvent(new Event('submit'));
+        }
+
+        // Download file function
+        function downloadFile() {
+            if (window.currentDownloadPath) {
+                const link = document.createElement('a');
+                link.href = window.currentDownloadPath;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Play video function
+        function playVideo() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const video = document.getElementById('downloadedVideo');
+            const playBtn = document.getElementById('playVideoBtn');
+            
+            if (videoPlayer.classList.contains('hidden')) {
+                videoPlayer.classList.remove('hidden');
+                video.load();
+                playBtn.textContent = '⏸️ Hide Video';
+            } else {
+                videoPlayer.classList.add('hidden');
+                video.pause();
+                playBtn.textContent = '▶️ Play Video';
+            }
+        }
+
+        // Reset form function
+        function resetForm() {
+            form.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            successState.classList.add('hidden');
+            urlInput.value = '';
+            document.getElementById('nextUrl').value = '';
+            document.getElementById('showSource').checked = false;
+            document.getElementById('randomEdit').checked = false;
+            document.getElementById('nextShowSource').checked = false;
+            document.getElementById('nextRandomEdit').checked = false;
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            
+            // Reset platform detection
+            detectPlatform('');
+            
+            // Reset video player
+            document.getElementById('videoPlayer').classList.add('hidden');
+            document.getElementById('playVideoBtn').style.display = 'none';
+            document.getElementById('downloadLinkBtn').style.display = 'none';
+            document.getElementById('playVideoBtn').textContent = '▶️ Play Video';
+            document.getElementById('downloadedVideo').pause();
+            
+            // Reset next platform detection
+            detectNextPlatform('');
+            
+            // Clear download path
+            window.currentDownloadPath = null;
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>
