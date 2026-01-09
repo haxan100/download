@@ -175,6 +175,16 @@ body::before {
   border-color: #059669;
 }
 
+.card-universal {
+  border-color: #7c3aed;
+}
+
+.card-universal:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(124, 58, 237, 0.3);
+  border-color: #7c3aed;
+}
+
 .card-disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -545,6 +555,21 @@ body::before {
   width: 200px;
 }
 
+.source-input {
+  padding: 0.5rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  width: 180px;
+  font-size: 0.875rem;
+}
+
+.source-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
 .video-controls button {
   background: var(--primary);
   color: white;
@@ -580,7 +605,23 @@ body::before {
   font-size: 0.875rem;
 }
 
-/* Responsive */
+/* Checkbox Styles */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
 @media (max-width: 768px) {
   .title {
     font-size: 2rem;
@@ -612,6 +653,11 @@ body::before {
   
   .title-input {
     width: 150px;
+  }
+  
+  .source-input {
+    width: 130px;
+    font-size: 0.8rem;
   }
 }
 
@@ -782,6 +828,87 @@ body::before {
 
 .info-banner strong {
   color: var(--text-primary);
+}
+
+/* Platform Detection Styles */
+.platform-info {
+  margin-bottom: 1.5rem;
+}
+
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.platform-badge.youtube {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+
+.platform-badge.tiktok {
+  background: rgba(255, 0, 80, 0.1);
+  border-color: rgba(255, 0, 80, 0.3);
+  color: #ff0050;
+}
+
+.platform-badge.unknown {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+/* Next Download Styles */
+.next-download {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+.next-download h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.next-form {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.next-form .form-input {
+  flex: 1;
+  margin: 0;
+}
+
+.next-form .btn {
+  width: auto;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .next-form {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .next-form .btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {

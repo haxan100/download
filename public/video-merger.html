@@ -40,6 +40,12 @@
                         <input type="text" id="outputName" class="form-input" 
                             placeholder="video_gabungan" value="video_gabungan">
                     </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="showSource" class="checkbox">
+                            Tampilkan Sumber (Nama Channel)
+                        </label>
+                    </div>
                     <button id="mergeBtn" class="btn btn-primary">Gabungkan Video</button>
                 </div>
             </div>
@@ -123,6 +129,8 @@
                     <div class="video-controls">
                         <input type="text" class="title-input" placeholder="Judul untuk video ini..." 
                                value="${video.name.replace(/\.[^/.]+$/, '')}" data-index="${index}" id="title_${index}">
+                        <input type="text" class="source-input" placeholder="Nama Channel/Creator..." 
+                               data-index="${index}" id="source_${index}">
                         <button onclick="moveUp(${index})" ${index === 0 ? 'disabled' : ''}>↑</button>
                         <button onclick="moveDown(${index})" ${index === window.videoFiles.length - 1 ? 'disabled' : ''}>↓</button>
                     </div>
@@ -134,24 +142,32 @@
         // Move video up
         function moveUp(index) {
             if (index > 0) {
-                // Save current titles before moving
+                // Save current titles and sources before moving
                 const currentTitles = [];
+                const currentSources = [];
                 window.videoFiles.forEach((_, i) => {
-                    const input = document.getElementById(`title_${i}`);
-                    currentTitles[i] = input ? input.value : '';
+                    const titleInput = document.getElementById(`title_${i}`);
+                    const sourceInput = document.getElementById(`source_${i}`);
+                    currentTitles[i] = titleInput ? titleInput.value : '';
+                    currentSources[i] = sourceInput ? sourceInput.value : '';
                 });
                 
-                // Swap videos and titles
+                // Swap videos, titles, and sources
                 [window.videoFiles[index], window.videoFiles[index - 1]] = [window.videoFiles[index - 1], window.videoFiles[index]];
                 [currentTitles[index], currentTitles[index - 1]] = [currentTitles[index - 1], currentTitles[index]];
+                [currentSources[index], currentSources[index - 1]] = [currentSources[index - 1], currentSources[index]];
                 
                 displayVideoList();
                 
-                // Restore titles
+                // Restore titles and sources
                 setTimeout(() => {
                     currentTitles.forEach((title, i) => {
-                        const input = document.getElementById(`title_${i}`);
-                        if (input) input.value = title;
+                        const titleInput = document.getElementById(`title_${i}`);
+                        if (titleInput) titleInput.value = title;
+                    });
+                    currentSources.forEach((source, i) => {
+                        const sourceInput = document.getElementById(`source_${i}`);
+                        if (sourceInput) sourceInput.value = source;
                     });
                 }, 10);
             }
@@ -160,24 +176,32 @@
         // Move video down
         function moveDown(index) {
             if (index < window.videoFiles.length - 1) {
-                // Save current titles before moving
+                // Save current titles and sources before moving
                 const currentTitles = [];
+                const currentSources = [];
                 window.videoFiles.forEach((_, i) => {
-                    const input = document.getElementById(`title_${i}`);
-                    currentTitles[i] = input ? input.value : '';
+                    const titleInput = document.getElementById(`title_${i}`);
+                    const sourceInput = document.getElementById(`source_${i}`);
+                    currentTitles[i] = titleInput ? titleInput.value : '';
+                    currentSources[i] = sourceInput ? sourceInput.value : '';
                 });
                 
-                // Swap videos and titles
+                // Swap videos, titles, and sources
                 [window.videoFiles[index], window.videoFiles[index + 1]] = [window.videoFiles[index + 1], window.videoFiles[index]];
                 [currentTitles[index], currentTitles[index + 1]] = [currentTitles[index + 1], currentTitles[index]];
+                [currentSources[index], currentSources[index + 1]] = [currentSources[index + 1], currentSources[index]];
                 
                 displayVideoList();
                 
-                // Restore titles
+                // Restore titles and sources
                 setTimeout(() => {
                     currentTitles.forEach((title, i) => {
-                        const input = document.getElementById(`title_${i}`);
-                        if (input) input.value = title;
+                        const titleInput = document.getElementById(`title_${i}`);
+                        if (titleInput) titleInput.value = title;
+                    });
+                    currentSources.forEach((source, i) => {
+                        const sourceInput = document.getElementById(`source_${i}`);
+                        if (sourceInput) sourceInput.value = source;
                     });
                 }, 10);
             }
@@ -186,19 +210,30 @@
         // Merge videos
         document.getElementById('mergeBtn').addEventListener('click', async () => {
             const outputName = document.getElementById('outputName').value.trim() || 'video_gabungan';
+            const showSource = document.getElementById('showSource').checked;
             
             // Collect titles in current order from the actual input values
             const titles = [];
+            const sources = [];
             window.videoFiles.forEach((video, index) => {
                 const titleInput = document.getElementById(`title_${index}`);
+                const sourceInput = document.getElementById(`source_${index}`);
+                
                 if (titleInput) {
                     titles.push(titleInput.value.trim() || `Video ${index + 1}`);
                 } else {
                     titles.push(`Video ${index + 1}`);
                 }
+                
+                if (sourceInput) {
+                    sources.push(sourceInput.value.trim() || '');
+                } else {
+                    sources.push('');
+                }
             });
 
             console.log('Titles to be used:', titles); // Debug log
+            console.log('Sources to be used:', sources); // Debug log
 
             arrangeStep.classList.add('hidden');
             loadingState.classList.remove('hidden');
@@ -207,6 +242,8 @@
             const formData = new FormData();
             formData.append('outputName', outputName);
             formData.append('titles', JSON.stringify(titles));
+            formData.append('sources', JSON.stringify(sources));
+            formData.append('showSource', showSource);
             
             window.videoFiles.forEach((video, index) => {
                 formData.append(`video_${index}`, video.file);

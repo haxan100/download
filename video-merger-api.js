@@ -38,8 +38,9 @@ function checkFfmpeg() {
 // API: Merge Videos with Text Overlay
 // API: Merge Videos with List Overlay Style (TikTok/Reels Style)
 router.post('/merge-videos-upload', upload.any(), async (req, res) => {
-    const { outputName } = req.body;
+    const { outputName, showSource } = req.body;
     const titles = JSON.parse(req.body.titles || '[]');
+    const sources = JSON.parse(req.body.sources || '[]');
     const videoFiles = req.files;
 
     if (!videoFiles || videoFiles.length === 0) {
@@ -142,6 +143,16 @@ router.post('/merge-videos-upload', upload.any(), async (req, res) => {
 
             // Tambahkan judul aktif
             filterChain += `drawtext=text='${titleText}':fontcolor=white:fontsize=${fontSize}:x=${textOffsetX}:y=${titleY}:shadowcolor=black:shadowx=2:shadowy=2:box=1:boxcolor=black@0.5:boxborderw=5`;
+            
+            // 3. TAMBAHKAN NAMA SUMBER/CHANNEL (JIKA DICENTANG)
+            if (showSource === 'true' && sources[index]) {
+                const sourceText = escapeText(sources[index]);
+                const sourceFontSize = Math.floor(fontSize * 0.6); // Lebih kecil dari judul
+                const sourceX = videoWidth - (sourceText.length * sourceFontSize * 0.6) - 20; // Pojok kanan
+                const sourceY = 30; // Pojok atas
+                
+                filterChain += `,drawtext=text='${sourceText}':fontcolor=white@0.7:fontsize=${sourceFontSize}:x=${sourceX}:y=${sourceY}:shadowcolor=black@0.5:shadowx=1:shadowy=1`;
+            }
             
             // Akhiri chain untuk video ini dan beri label output sementara (v0, v1, dst)
             filterChain += `[v${index}]; `;

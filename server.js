@@ -310,6 +310,10 @@ app.use('/api', videoMergerRoutes);
 const transcriptRoutes = require('./transcript-api');
 app.use('/api', transcriptRoutes);
 
+// Import universal downloader routes
+const universalRoutes = require('./universal-api');
+app.use('/api', universalRoutes);
+
 // Start server
 server.listen(PORT, async () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
